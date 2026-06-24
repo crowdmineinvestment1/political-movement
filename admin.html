@@ -495,7 +495,7 @@ Determining data source...
 // SUPABASE CONFIGURATION
 // ============================================================================
 const SUPABASE_URL = 'https://ursrbmvgrpjhuogfimal.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVyc3JibXZncnBqaHVvZ2ZpbWFsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MTk1MDAwMDAsImV4cCI6MjAzNTEwMDAwMH0.placeholder_key';
+const SUPABASE_KEY = 'sb_publishable_tPbGnhGMinGYFI5tc4KbvA_7Gu2Ketw';
 
 let db = null;
 let useSupabase = false;
@@ -570,45 +570,59 @@ async function dbSelect(table, options = {}) {
 }
 
 async function dbInsert(table, record) {
-    if (db) {
-        try {
-            const { data, error } = await db.from(table).insert([record]).select();
-            if (!error) {
-                useSupabase = true;
-                return { data, error: null };
-            }
-            console.warn(`Supabase insert to ${table} failed:`, error.message);
-        } catch (err) {
-            console.warn(`Supabase insert error on ${table}:`, err);
-        }
-    }
-
-    // Fallback
-    useSupabase = false;
+    // Always save to localStorage so data is always available
     const items = JSON.parse(localStorage.getItem(table) || '[]');
     record.id = record.id || ('local_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9));
     items.push(record);
     localStorage.setItem(table, JSON.stringify(items));
+
+    // Also try Supabase
+    if (db) {
+        try {
+            const { error } = await db.from(table).insert([record]);
+            if (!error) {
+                useSupabase = true;
+                updateConnectionStatus(true);
+            } else {
+                console.warn(`Supabase insert to ${table} failed:`, error.message);
+                updateConnectionStatus(false);
+            }
+        } catch (err) {
+            console.warn(`Supabase insert error on ${table}:`, err);
+            updateConnectionStatus(false);
+        }
+    } else {
+        updateConnectionStatus(false);
+    }
+
     return { data: [record], error: null };
 }
 
 async function dbUpdate(table, id, updates) {
-    if (db) {
-        try {
-            const { data, error } = await db.from(table).update(updates).eq('id', id).select();
-            if (!error) return { data, error: null };
-            console.warn(`Supabase update on ${table} failed:`, error.message);
-        } catch (err) {
-            console.warn(`Supabase update error on ${table}:`, err);
-        }
-    }
-
-    // Fallback
+    // Always update localStorage
     const items = JSON.parse(localStorage.getItem(table) || '[]');
     const idx = items.findIndex(i => i.id === id);
     if (idx !== -1) {
         items[idx] = { ...items[idx], ...updates };
         localStorage.setItem(table, JSON.stringify(items));
+    }
+
+    // Also try Supabase
+    if (db) {
+        try {
+            const { error } = await db.from(table).update(updates).eq('id', id);
+            if (!error) {
+                useSupabase = true;
+                updateConnectionStatus(true);
+            } else {
+                console.warn(`Supabase update on ${table} failed:`, error.message);
+            }
+        } catch (err) {
+            console.warn(`Supabase update error on ${table}:`, err);
+        }
+    }
+
+    if (idx !== -1) {
         return { data: [items[idx]], error: null };
     }
     return { data: null, error: { message: 'Not found' } };

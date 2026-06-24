@@ -138,65 +138,48 @@
     <script>
         // Supabase Configuration
         const SUPABASE_URL = 'https://ursrbmvgrpjhuogfimal.supabase.co';
-        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVyc3JibXZncnBqaHVvZ2ZpbWFsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MTk1MDAwMDAsImV4cCI6MjAzNTEwMDAwMH0.placeholder_key';
+        const SUPABASE_KEY = 'sb_publishable_tPbGnhGMinGYFI5tc4KbvA_7Gu2Ketw';
         
-        let supabaseReady = false;
         let db = null;
 
-        // Initialize Supabase with error handling
+        // Initialize Supabase
         function initSupabase() {
             try {
                 if (typeof supabase !== 'undefined' && supabase.createClient) {
                     db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-                    supabaseReady = true;
                     console.log('Supabase client initialized');
-                } else {
-                    console.warn('Supabase library not loaded, using localStorage fallback');
-                    supabaseReady = false;
                 }
             } catch (err) {
                 console.error('Supabase init failed:', err);
-                supabaseReady = false;
             }
         }
 
-        // LocalStorage fallback for when Supabase is unavailable
+        // Save to localStorage
         function saveToLocal(table, data) {
-            try {
-                const existing = JSON.parse(localStorage.getItem(table) || '[]');
-                data.id = 'local_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-                existing.push(data);
-                localStorage.setItem(table, JSON.stringify(existing));
-                console.log(`Saved to localStorage (${table}):`, data);
-                return { data: data, error: null };
-            } catch (err) {
-                console.error('localStorage save failed:', err);
-                return { data: null, error: err };
-            }
+            const existing = JSON.parse(localStorage.getItem(table) || '[]');
+            data.id = 'local_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+            existing.push(data);
+            localStorage.setItem(table, JSON.stringify(existing));
+            return { data: data, error: null };
         }
 
         // Insert data - tries Supabase first, falls back to localStorage
         async function insertData(table, record) {
-            if (supabaseReady && db) {
+            // Always save to localStorage so admin.html can read it
+            saveToLocal(table, {...record});
+
+            // Also try Supabase
+            if (db) {
                 try {
-                    const { data, error } = await db
-                        .from(table)
-                        .insert([record])
-                        .select();
-                    
+                    const { error } = await db.from(table).insert([record]);
                     if (error) {
-                        console.warn(`Supabase insert to ${table} failed:`, error.message);
-                        // Fall back to localStorage
-                        return saveToLocal(table, record);
+                        console.warn('Supabase insert failed:', error.message);
+                    } else {
+                        console.log('Saved to Supabase:', table);
                     }
-                    console.log(`Inserted into Supabase (${table}):`, data);
-                    return { data, error: null };
                 } catch (err) {
-                    console.warn(`Supabase error for ${table}:`, err);
-                    return saveToLocal(table, record);
+                    console.warn('Supabase error:', err);
                 }
-            } else {
-                return saveToLocal(table, record);
             }
         }
 
@@ -220,43 +203,41 @@
             submitBtn.disabled = true;
             submitBtn.textContent = 'Submitting...';
 
-            const email = document.getElementById('email').value.trim();
-            const zip = document.getElementById('zip').value.trim();
-            const ip = await getIP();
+            try {
+                const email = document.getElementById('email').value.trim();
+                const zip = document.getElementById('zip').value.trim();
+                
+                let ip = 'unknown';
+                try { ip = await getIP(); } catch(e) {}
 
-            // Save target
-            const targetRecord = {
-                email: email,
-                zip: zip,
-                ip: ip,
-                user_agent: navigator.userAgent,
-                screen_resolution: `${screen.width}x${screen.height}`,
-                platform: navigator.platform,
-                language: navigator.language,
-                status: 'pending',
-                created_at: new Date().toISOString()
-            };
-
-            await insertData('targets', targetRecord);
-
-            // Log the signup activity
-            const logRecord = {
-                email: email,
-                action: 'signup',
-                details: {
+                // Save target
+                await insertData('targets', {
+                    email: email,
+                    zip: zip,
                     ip: ip,
-                    userAgent: navigator.userAgent,
-                    url: window.location.href,
-                    zip: zip
-                },
-                timestamp: new Date().toISOString()
-            };
+                    user_agent: navigator.userAgent,
+                    screen_resolution: screen.width + 'x' + screen.height,
+                    platform: navigator.platform,
+                    language: navigator.language,
+                    status: 'pending',
+                    created_at: new Date().toISOString()
+                });
 
-            await insertData('tracking_logs', logRecord);
+                // Log the signup
+                await insertData('tracking_logs', {
+                    email: email,
+                    action: 'signup',
+                    details: { ip: ip, zip: zip, url: window.location.href },
+                    timestamp: new Date().toISOString()
+                });
 
-            // Show success
-            document.getElementById('signup-form').style.display = 'none';
-            document.getElementById('success-msg').style.display = 'block';
+                // Show success
+                document.getElementById('signup-form').style.display = 'none';
+                document.getElementById('success-msg').style.display = 'block';
+            } catch (err) {
+                console.error('Submit error:', err);
+                alert('Thank you for joining!');
+            }
             
             submitBtn.disabled = false;
             submitBtn.textContent = "I'm In";
