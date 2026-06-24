@@ -317,7 +317,7 @@ class SecurityMonitor {
                 'malware-hash-123abc': { threat: true, type: 'malware_hash', confidence: 78 }
             };
             
-            return threatMap[identifier] || { threat: false, type: 'unknown', confidence: 0 };
+            return threatMap[indicator] || { threat: false, type: 'unknown', confidence: 0 };
         } catch (error) {
             console.error('Error checking threat intelligence:', error);
             return { threat: false, type: 'error', confidence: 0 };
